@@ -87,6 +87,8 @@ module.exports = function(homebridge) {
     fixInheritance(IndigoFanAccessory, IndigoAccessory);
     fixInheritance(IndigoThermostatAccessory, IndigoAccessory);
     fixInheritance(IndigoActionAccessory, IndigoAccessory);
+    fixInheritance(IndigoMotionSensorAccessory, IndigoAccessory);
+    fixInheritance(IndigoTemperatureSensorAccessory, IndigoAccessory);
 
     homebridge.registerPlatform("homebridge-indigo", "Indigo", IndigoPlatform);
 };
@@ -159,12 +161,14 @@ function IndigoPlatform(log, config) {
     this.includeIds = config.includeIds;
     this.excludeIds = config.excludeIds;
     this.treatAsSwitchIds = config.treatAsSwitchIds;
+    this.treatAsMotionSensor = config.treatAsMotionSensor;
     this.treatAsLockIds = config.treatAsLockIds;
     this.treatAsDoorIds = config.treatAsDoorIds;
     this.treatAsGarageDoorIds = config.treatAsGarageDoorIds;
     this.treatAsWindowIds = config.treatAsWindowIds;
     this.treatAsWindowCoveringIds = config.treatAsWindowCoveringIds;
     this.thermostatsInCelsius = config.thermostatsInCelsius;
+    this.treatAsTemperatureSensor = config.treatAsTemperatureSensor;
 
     if (config.accessoryNamePrefix) {
         this.accessoryNamePrefix = config.accessoryNamePrefix;
@@ -382,7 +386,9 @@ IndigoPlatform.prototype.createAccessoryFromJSON = function(deviceURL, json) {
         return new IndigoDoorAccessory(this, deviceURL, json);
     } else if (json.typeSupportsOnOff && this.treatAsGarageDoorIds &&
                (this.treatAsGarageDoorIds.indexOf(String(json.id)) >= 0)) {
-        return new IndigoGarageDoorAccessory(this, deviceURL, json);
+        return new IndigoGarageDoorAccessory(this, deviceURL, json)
+    } else if (json.typeSupportsOnOff && this.treatAsMotionSensor.indexOf(String(json.id)) >= 0) {
+               return new IndigoMotionSensorAccessory(this, deviceURL, json);
     } else if (json.typeSupportsOnOff && this.treatAsWindowIds &&
                (this.treatAsWindowIds.indexOf(String(json.id)) >= 0)) {
         return new IndigoWindowAccessory(this, deviceURL, json);
@@ -395,6 +401,8 @@ IndigoPlatform.prototype.createAccessoryFromJSON = function(deviceURL, json) {
         return new IndigoFanAccessory(this, deviceURL, json);
     } else if (json.typeSupportsDim || json.typeIsDimmer || json.typeSupportsOnOff) {
         return new IndigoLightAccessory(this, deviceURL, json);
+    } else if (this.treatAsTemperatureSensor.indexOf(String(json.id)) >= 0) {
+        return new IndigoTemperatureSensorAccessory(this, deviceURL, json);
     } else {
         return null;
     }
@@ -1810,3 +1818,34 @@ IndigoActionAccessory.prototype.executeAction = function(value, callback, contex
         callback();
     }
 };
+
+function IndigoMotionSensorAccessory(platform, deviceURL, json) {
+        IndigoAccessory.call(this, platform, deviceURL, json);
+        
+        var s = this.addService(new Service.MotionSensor(this.name));
+        
+        s.getCharacteristic(Characteristic.MotionDetected)
+                .on('get', this.getOnState.bind(this)); 
+}
+
+function IndigoTemperatureSensorAccessory(platform, deviceURL, json) {
+        IndigoAccessory.call(this, platform, deviceURL, json);
+        
+        var s = this.addService(new Service.TemperatureSensor(this.name));
+        s.getCharacteristic(Characteristic.CurrentTemperature)
+                .on('get', this.getCurrentTemperature.bind(this));
+}
+
+IndigoTemperatureSensorAccessory.prototype.getCurrentTemperature = function(callback, context) {
+        this.getStatus(
+                function(error) {
+                        if (error) {
+                                callback(error);
+                        } else {
+                                var value = this.displayRawState;
+                                this.log("%s: getCurrentTemperature() => %s", this.name, value);
+                                callback(undefined, value);
+                        }
+                }.bind(this)
+        );
+}
