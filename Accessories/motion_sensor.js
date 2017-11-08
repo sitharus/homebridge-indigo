@@ -5,7 +5,19 @@ class IndigoMotionSensorAccessory extends IndigoAccessory {
         super(services, platform, services.Service.MotionSensor, deviceURL, json);
 
         this.service.getCharacteristic(this.characteristic.MotionDetected)
-            .on('get', this.getOnState.bind(this));
+            .on('get', this.getMotionDetected.bind(this));
+    }
+
+    getMotionDetected(callback, context) {
+        this.query('motionDetected',
+            (error, value) => {
+                if (error) {
+                    callback(error);
+                } else {
+                    callback(error, value);
+                }
+            }
+        );
     }
 }
 

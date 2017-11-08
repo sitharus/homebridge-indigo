@@ -81,6 +81,7 @@ const IndigoGarageDoorAccessory = require('./Accessories/garage_door');
 const IndigoFanAccessory = require('./Accessories/fan');
 const IndigoThermostatAccessory = require('./Accessories/thermostat');
 const IndigoActionAccessory = require('./Accessories/action');
+const IndigoLightSensorAccessory = require('./Accessories/light_sensor');
 
 let Service, Characteristic, Accessory, uuid;
 
@@ -356,8 +357,6 @@ class IndigoPlatform {
         } else if (json.supportsOnOff && this.treatAsGarageDoorIds &&
             (this.treatAsGarageDoorIds.indexOf(String(json.id)) >= 0)) {
             return new IndigoGarageDoorAccessory(services, this, deviceURL, json);
-        } else if (json.supportsOnOff && this.treatAsMotionSensor.indexOf(String(json.id)) >= 0) {
-            return new IndigoMotionSensorAccessory(services, this, deviceURL, json);
         } else if (json.supportsOnOff && this.treatAsWindowIds &&
             (this.treatAsWindowIds.indexOf(String(json.id)) >= 0)) {
             return new IndigoWindowAccessory(services, this, deviceURL, json);
@@ -370,8 +369,12 @@ class IndigoPlatform {
             return new IndigoFanAccessory(services, this, deviceURL, json);
         } else if (json.supportsDim || json.isDimmer || json.supportsOnOff) {
             return new IndigoLightAccessory(services, this, deviceURL, json);
-        } else if (this.treatAsTemperatureSensor.indexOf(String(json.id)) >= 0) {
+        } else if (json.type === 'temperatureSensor') {
             return new IndigoTemperatureSensorAccessory(services, this, deviceURL, json);
+        } else if (json.type === 'lightSensor') {
+            return new IndigoLightSensorAccessory(services, this, deviceURL, json);
+        } else if (json.type === 'motionSensor') {
+            return new IndigoMotionSensorAccessory(services, this, deviceURL, json);
         } else {
             return null;
         }
