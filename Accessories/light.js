@@ -19,10 +19,30 @@ class IndigoLightAccessory extends IndigoAccessory {
             .on('get', this.getOnState.bind(this))
             .on('set', this.setLightOnState.bind(this));
 
-        if (this.typeSupportsDim || this.typeIsDimmer) {
+        if (this.supportsDim || this.isDimmer) {
             this.service.getCharacteristic(this.characteristic.Brightness)
                 .on('get', this.getBrightness.bind(this))
                 .on('set', this.setBrightness.bind(this));
+        }
+
+        if (this.supportsWhiteTemperature) {
+            this.service.getCharacteristic(this.characteristic.ColorTemperature)
+                .on('get', this.getColorTemperature.bind(this))
+                .on('set', this.setColorTemperature.bind(this))
+                // min/max values found here: https://github.com/ebaauw/homebridge-hue/blob/master/lib/HueLight.js
+                .setProps({maxValue: 500, minValue: 153});
+            
+            this.maxCT = 500;
+        }
+
+        if (this.supportsHSV) {
+            this.service.getCharacteristic(this.characteristic.Hue)
+                .on('get', this.getHue.bind(this))
+                .on('set', this.setHue.bind(this));
+            
+            this.service.getCharacteristic(this.characteristic.Saturation)
+                .on('get', this.getSaturation.bind(this))
+                .on('set', this.setSaturation.bind(this));
         }
     }
 
@@ -34,7 +54,7 @@ class IndigoLightAccessory extends IndigoAccessory {
     // context: if equal to IndigoAccessory.REFRESH_CONTEXT, will not call the Indigo RESTful API to update the device, otherwise will
     setLightOnState(onState, callback, context) {
         this.log("%s: setLightOnState(%d)", this.name, onState);
-        if ((this.typeSupportsDim || this.typeIsDimmer) && onState && this.previousBrightness) {
+        if ((this.supportsDim || this.isDimmer) && onState && this.previousBrightness) {
             this.setBrightness(this.previousBrightness, callback, context);
         } else {
             this.setOnState(onState, callback, context)
@@ -46,7 +66,7 @@ class IndigoLightAccessory extends IndigoAccessory {
     //           error: error message or undefined if no error
     //           brightness: if device supports brightness, will return the brightness value
     getBrightness(callback) {
-        if (this.typeSupportsDim || this.typeIsDimmer) {
+        if (this.supportsDim || this.isDimmer) {
             this.query("brightness",
                 (error, brightness) => {
                     if (!error && brightness > 0) {
@@ -73,7 +93,7 @@ class IndigoLightAccessory extends IndigoAccessory {
                 callback();
             }
         }
-        else if (this.typeSupportsDim || this.typeIsDimmer) {
+        else if (this.supportsDim || this.isDimmer) {
             if (brightness >= 0 && brightness <= 100) {
                 if (brightness > 0) {
                     this.previousBrightness = brightness;
@@ -83,6 +103,78 @@ class IndigoLightAccessory extends IndigoAccessory {
         }
         else if (callback) {
             callback("Accessory does not support brightness");
+        }
+    }
+
+    getColorTemperature(callback) {
+        if (this.supportsWhiteTemperature) {
+            this.query("whiteTemperature",
+                (error, temperature) => {
+                    if (callback) {
+                        callback(error, temperature);
+                    }
+                });
+        } else if (callback) {
+            callback("Accessory does not support white temperature");
+        }
+    }
+
+    setColorTemperature(temperature, callback, context) {
+        if (context === IndigoAccessory.REFRESH_CONTEXT) {
+            if (callback) { callback(); }
+        } else if (this.supportsWhiteTemperature) {
+            const newTemp = 1000000.0 / temperature;
+            this.updateStatus({ whiteTemperature: newTemp.toFixed(0) }, callback);
+        } else if (callback) {
+            callback("Accessory does not support color temperature");
+        }
+    }
+
+    getHue(callback) {
+        if (this.supportsHSV) {
+            this.query("hue",
+                (error, hue) => {
+                    if (callback) {
+                        callback(error, hue);
+                    }
+                }
+            );
+        } else if (callback) {
+            callback("Accessory does not support hue");
+        }
+    }
+
+    setHue(hue, callback, context) {
+        if (context === IndigoAccessory.REFRESH_CONTEXT) {
+            if (callback) { callback(); }
+        } else if (this.supportsHSV) {
+            this.updateStatus({ hue: hue }, callback);
+        } else if (callback) {
+            callback("Accessory does not support hue")
+        }
+    }
+
+    getSaturation(callback) {
+        if (this.supportsHSV) {
+            this.query("saturation", 
+                (error, saturation) => {
+                    if (callback) {
+                        callback(error, saturation);
+                    }
+                }
+            );
+        } else if (callback) {
+            callback("Accessory does not support saturation");
+        }
+    }
+
+    setSaturation(saturation, callback, context) {
+        if (context === IndigoAccessory.REFRESH_CONTEXT) {
+            if (callback) { callback(); }
+        } else if (this.supportsHSV) {
+            this.updateStatus({ saturation: saturation }, callback);
+        } else if (callback) {
+            callback("Accessory does not support saturation");
         }
     }
 
@@ -102,6 +194,23 @@ class IndigoLightAccessory extends IndigoAccessory {
         }
         this.service.getCharacteristic(this.characteristic.Brightness)
             .setValue(brightness, undefined, IndigoAccessory.REFRESH_CONTEXT);
+    }
+
+    // Colour temperature conversion maths from https://github.com/ebaauw/homebridge-hue/commit/627a32d7bc9ea48bccf1278eebc83d064d86817e
+    update_colorTemperature(kelvin) {
+        const ct = Math.max(153, Math.min(Math.round(1000000.0 / kelvin), this.maxCT))
+        this.service.getCharacteristic(this.characteristic.ColorTemperature)
+            .setValue(ct.toFixed(0), undefined, IndigoAccessory.REFRESH_CONTEXT);
+    }
+
+    update_hue(hue) {
+        this.service.getCharacteristic(this.characteristic.Hue)
+            .setValue(hue, undefined, IndigoAccessory.REFRESH_CONTEXT);
+    }
+
+    update_saturation(saturation) {
+        this.service.getCharacteristic(this.characteristic.Saturation)
+            .setValue(saturation, undefined, IndigoAccessory.REFRESH_CONTEXT);
     }
 }
 

@@ -31,6 +31,11 @@ class IndigoAccessory {
 
         if (this.type) {
             this.infoService.setCharacteristic(Characteristic.Model, this.type);
+            switch (this.type) {
+                case 'dimmer':
+                    this.isDimmer = true;
+                    break;
+            }
         }
 
         if (this.versByte) {
@@ -163,7 +168,7 @@ class IndigoAccessory {
     //           error: error message or undefined if no error
     //           onState: true if device is on, false otherwise
     getOnState(callback) {
-        if (this.typeSupportsOnOff) {
+        if (this.supportsOnOff) {
             this.getStatus(
                 (error) => {
                     if (error) {
@@ -171,7 +176,7 @@ class IndigoAccessory {
                             callback(error);
                         }
                     } else {
-                        var onState = (this.isOn) ? true : false;
+                        var onState = (this.on) ? true : false;
                         this.log("%s: getOnState() => %s", this.name, onState);
                         if (callback) {
                             callback(undefined, onState);
@@ -195,8 +200,8 @@ class IndigoAccessory {
             if (callback) {
                 callback();
             }
-        } else if (this.typeSupportsOnOff) {
-            this.updateStatus({ isOn: (onState) ? 1 : 0 }, callback);
+        } else if (this.supportsOnOff) {
+            this.updateStatus({ on: (onState) ? 1 : 0 }, callback);
         } else if (callback) {
             callback("Accessory does not support on/off");
         }

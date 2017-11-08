@@ -151,7 +151,7 @@ class IndigoPlatform {
             this.auth = {
                 user: config.username,
                 pass: config.password,
-                sendImmediately: false
+                sendImmediately: true
             };
         }
 
@@ -191,10 +191,7 @@ class IndigoPlatform {
 
     // Invokes callback(accessories[]) with all of the discovered accessories for this platform
     accessories(callback) {
-        var requestURLs = [this.path + "/devices.json/"];
-        if (this.includeActions) {
-            requestURLs.push(this.path + "/actions.json/");
-        }
+        var requestURLs = [this.path + "/devices"];
 
         async.eachSeries(requestURLs,
             (requestURL, asyncCallback) => {
@@ -243,15 +240,6 @@ class IndigoPlatform {
                         }
                     );
                 }
-            },
-            // jsonFixer: Indigo has a bug that if the first item has remote display
-            // disabled, the returned JSON array has an extra comma at the beginning
-            function (body) {
-                var firstComma = body.indexOf(",");
-                if (firstComma > 0 && firstComma < 5) {
-                    body = body.substr(0, firstComma) + body.substr(firstComma + 1);
-                }
-                return (body);
             }
         );
     };
@@ -262,34 +250,20 @@ class IndigoPlatform {
     // Note: does not create and add the IndigoAccessory if it is an unknoen type or is excluded by the config
     addAccessory(item, callback) {
         // Get the details of the item, using its provided restURL
-        this.indigoRequestJSON(item.restURL, "GET", null,
-            (error, json) => {
-                if (error) {
-                    this.log("Ignoring accessory %s due to error", item.restURL);
-                    callback();
-                }
-                else {
-                    // Actions are missing a type field
-                    if (json.restParent == "actions") {
-                        json.type = "Action";
-                    }
-                    this.log("Discovered %s (ID %s): %s", json.type, json.id, json.name);
-                    if (this.includeItemId(json.id)) {
-                        var accessory = this.createAccessoryFromJSON(item.restURL, json);
-                        if (accessory) {
-                            this.foundAccessories.push(accessory);
-                            this.accessoryMap.set(String(json.id), accessory);
-                        } else {
-                            this.log("Ignoring unknown accessory type %s", json.type);
-                        }
-                    }
-                    else {
-                        this.log("Ignoring excluded ID %s", json.id);
-                    }
-                    callback();
-                }
+        this.log("Adding accessory %s", JSON.stringify(item));
+        if (this.includeItemId(item.id)) {
+            var accessory = this.createAccessoryFromJSON(item.href, item);
+            if (accessory) {
+                this.foundAccessories.push(accessory);
+                this.accessoryMap.set(String(item.id), accessory);
+            } else {
+                this.log("Ignoring unknown accessory type %s", item.type);
             }
-        );
+        }
+        else {
+            this.log("Ignoring excluded ID %s", item.id);
+        }
+        callback();
     };
 
     // Returns true if the item id should be included in the accessory list
@@ -347,9 +321,6 @@ class IndigoPlatform {
                     callback(msg);
                 }
                 else {
-                    if (jsonFixer) {
-                        body = jsonFixer(body);
-                    }
                     var json;
                     try {
                         var json = JSON.parse(body);
@@ -373,31 +344,31 @@ class IndigoPlatform {
         const services = { Accessory, Service, uuid, Characteristic };
         if (json.restParent == "actions") {
             return new IndigoActionAccessory(services, this, deviceURL, json);
-        } else if (json.typeSupportsOnOff && this.treatAsSwitchIds &&
+        } else if (json.supportsOnOff && this.treatAsSwitchIds &&
             (this.treatAsSwitchIds.indexOf(String(json.id)) >= 0)) {
             return new IndigoSwitchAccessory(services, this, deviceURL, json);
-        } else if (json.typeSupportsOnOff && this.treatAsLockIds &&
+        } else if (json.supportsOnOff && this.treatAsLockIds &&
             (this.treatAsLockIds.indexOf(String(json.id)) >= 0)) {
             return new IndigoLockAccessory(services, this, deviceURL, json);
-        } else if (json.typeSupportsOnOff && this.treatAsDoorIds &&
+        } else if (json.supportsOnOff && this.treatAsDoorIds &&
             (this.treatAsDoorIds.indexOf(String(json.id)) >= 0)) {
             return new IndigoDoorAccessory(services, this, deviceURL, json);
-        } else if (json.typeSupportsOnOff && this.treatAsGarageDoorIds &&
+        } else if (json.supportsOnOff && this.treatAsGarageDoorIds &&
             (this.treatAsGarageDoorIds.indexOf(String(json.id)) >= 0)) {
             return new IndigoGarageDoorAccessory(services, this, deviceURL, json);
-        } else if (json.typeSupportsOnOff && this.treatAsMotionSensor.indexOf(String(json.id)) >= 0) {
+        } else if (json.supportsOnOff && this.treatAsMotionSensor.indexOf(String(json.id)) >= 0) {
             return new IndigoMotionSensorAccessory(services, this, deviceURL, json);
-        } else if (json.typeSupportsOnOff && this.treatAsWindowIds &&
+        } else if (json.supportsOnOff && this.treatAsWindowIds &&
             (this.treatAsWindowIds.indexOf(String(json.id)) >= 0)) {
             return new IndigoWindowAccessory(services, this, deviceURL, json);
-        } else if (json.typeSupportsOnOff && this.treatAsWindowCoveringIds &&
+        } else if (json.supportsOnOff && this.treatAsWindowCoveringIds &&
             (this.treatAsWindowCoveringIds.indexOf(String(json.id)) >= 0)) {
             return new IndigoWindowCoveringAccessory(services, this, deviceURL, json);
-        } else if (json.typeSupportsHVAC || json.typeIsHVAC) {
+        } else if (json.supportsHVAC || json.typeIsHVAC) {
             return new IndigoThermostatAccessory(services, this, deviceURL, json, this.thermostatsInCelsius);
-        } else if (json.typeSupportsSpeedControl || json.typeIsSpeedControl) {
+        } else if (json.supportsSpeedControl || json.typeIsSpeedControl) {
             return new IndigoFanAccessory(services, this, deviceURL, json);
-        } else if (json.typeSupportsDim || json.typeIsDimmer || json.typeSupportsOnOff) {
+        } else if (json.supportsDim || json.isDimmer || json.supportsOnOff) {
             return new IndigoLightAccessory(services, this, deviceURL, json);
         } else if (this.treatAsTemperatureSensor.indexOf(String(json.id)) >= 0) {
             return new IndigoTemperatureSensorAccessory(services, this, deviceURL, json);
