@@ -116,7 +116,7 @@ class IndigoPlatform {
         // We use a queue to serialize all the requests to Indigo
         this.requestQueue = async.queue(
             function (options, callback) {
-                this.log("Indigo request: %s", options.url);
+                this.log.debug("Indigo request: %s", options.url);
                 request(options, callback);
             }.bind(this)
         );
@@ -142,11 +142,11 @@ class IndigoPlatform {
             if (this.path.length > 0 && this.path.charAt(this.path.length - 1) == '/') {
                 this.path = this.path.substr(0, this.path.length - 1);
             }
-            this.log("Path prefix is %s", this.path);
+            this.log.info("Path prefix is %s", this.path);
         }
 
         this.baseURL = protocol + "://" + config.host + ":" + port;
-        this.log("Indigo base URL is %s", this.baseURL);
+        this.log.info("Indigo base URL is %s", this.baseURL);
 
         if (config.username && config.password) {
             this.auth = {
@@ -200,18 +200,18 @@ class IndigoPlatform {
             },
             (asyncError) => {
                 if (asyncError) {
-                    this.log(asyncError);
+                    this.log.error(asyncError);
                 }
 
                 if (this.foundAccessories.length > 99) {
-                    this.log("*** WARNING *** you have %s accessories.",
+                    this.log.warn("*** WARNING *** you have %s accessories.",
                         this.foundAccessories.length);
-                    this.log("*** Limiting to the first 99 discovered. ***");
-                    this.log("*** See README.md for how to filter your list. ***");
+                    this.log.warn("*** Limiting to the first 99 discovered. ***");
+                    this.log.warn("*** See README.md for how to filter your list. ***");
                     this.foundAccessories = this.foundAccessories.slice(0, 99);
                 }
 
-                this.log("Created %s accessories", this.foundAccessories.length);
+                this.log.debug("Created %s accessories", this.foundAccessories.length);
                 callback(this.foundAccessories.sort(
                     function (a, b) {
                         return (a.name > b.name) - (a.name < b.name);
@@ -251,18 +251,18 @@ class IndigoPlatform {
     // Note: does not create and add the IndigoAccessory if it is an unknoen type or is excluded by the config
     addAccessory(item, callback) {
         // Get the details of the item, using its provided restURL
-        this.log("Adding accessory %s", JSON.stringify(item));
+        this.log.debug("Adding accessory %s", JSON.stringify(item));
         if (this.includeItemId(item.id)) {
             var accessory = this.createAccessoryFromJSON(item.href, item);
             if (accessory) {
                 this.foundAccessories.push(accessory);
                 this.accessoryMap.set(String(item.id), accessory);
             } else {
-                this.log("Ignoring unknown accessory type %s", item.type);
+                this.log.info("Ignoring unknown accessory type %s", item.type);
             }
         }
         else {
-            this.log("Ignoring excluded ID %s", item.id);
+            this.log.info("Ignoring excluded ID %s", item.id);
         }
         callback();
     };
@@ -385,7 +385,7 @@ class IndigoPlatform {
     // Sends a 200 HTTP response if successful, a 404 if the ID is not found, or a 500 if there is an error
     updateAccessory(request, response) {
         var id = String(request.params.id);
-        this.log("Got update request for device ID %s", id);
+        this.log.debug("Got update request for device ID %s", id);
         var accessory = this.accessoryMap.get(id);
         if (accessory) {
             accessory.refresh((error) => {
@@ -408,7 +408,7 @@ class IndigoPlatform {
     // Sends a 200 HTTP response if successful, or a 404 if the ID is not found
     updateAccessoryFromPost(request, response) {
         var id = String(request.params.id);
-        this.log("Got update request for device ID %s", id);
+        this.log.debug("Got update request for device ID %s", id);
         var accessory = this.accessoryMap.get(id);
         if (accessory) {
             accessory.refreshFromJSON(request.body);

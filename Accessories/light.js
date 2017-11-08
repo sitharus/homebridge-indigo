@@ -53,7 +53,7 @@ class IndigoLightAccessory extends IndigoAccessory {
     // callback: invokes callback(error), error is undefined if no error occurred
     // context: if equal to IndigoAccessory.REFRESH_CONTEXT, will not call the Indigo RESTful API to update the device, otherwise will
     setLightOnState(onState, callback, context) {
-        this.log("%s: setLightOnState(%d)", this.name, onState);
+        this.log.debug("%s: setLightOnState(%d)", this.name, onState);
         if ((this.supportsDim || this.isDimmer) && onState && this.previousBrightness) {
             this.setBrightness(this.previousBrightness, callback, context);
         } else {
@@ -87,7 +87,7 @@ class IndigoLightAccessory extends IndigoAccessory {
     // callback: invokes callback(error), error is undefined if no error occurred
     // context: if equal to IndigoAccessory.REFRESH_CONTEXT, will not call the Indigo RESTful API to update the device, otherwise will
     setBrightness(brightness, callback, context) {
-        this.log("%s: setBrightness(%d)", this.name, brightness);
+        this.log.debug("%s: setBrightness(%d)", this.name, brightness);
         if (context == IndigoAccessory.REFRESH_CONTEXT) {
             if (callback) {
                 callback();

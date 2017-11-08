@@ -93,7 +93,7 @@ class IndigoAccessory {
     // callback: invokes callback(error), error is undefined if no error occurred
     // updateCallback: optional, invokes updateCallback(propertyName, propertyValue) for each property that has changed value
     updateStatus(qs, callback, updateCallback) {
-        this.log("updateStatus of %s: %s", this.name, JSON.stringify(qs));
+        this.log.debug("updateStatus of %s: %s", this.name, JSON.stringify(qs));
         this.platform.indigoRequest(this.deviceURL, "PUT", qs,
             (error, response, body) => {
                 if (error) {
@@ -118,7 +118,7 @@ class IndigoAccessory {
                         callback(error);
                     }
                 } else {
-                    this.log("%s: query(%s) => %s", this.name, key, this[key]);
+                    this.log.debug("%s: query(%s) => %s", this.name, key, this[key]);
                     if (callback) {
                         callback(undefined, this[key]);
                     }
@@ -135,7 +135,7 @@ class IndigoAccessory {
     updateProperty(prop, value) {
         updateFunction = "update_" + prop;
         if (this[updateFunction]) {
-            this.log("%s: %s(%s)", this.name, updateFunction, value);
+            this.log.debug("%s: %s(%s)", this.name, updateFunction, value);
             this[updateFunction](value);
         }
     };
@@ -146,7 +146,7 @@ class IndigoAccessory {
     // This is used when we are listening on the listenPort for notifications from Indigo about devices that have changed state
     // callback: invokes callback(error), error is undefined if no error occurred
     refresh(callback) {
-        this.log("%s: refresh()", this.name);
+        this.log.debug("%s: refresh()", this.name);
         this.getStatus(callback, this.updateProperty.bind(this));
     };
 
@@ -156,7 +156,7 @@ class IndigoAccessory {
     // This is used when we are listening on the listenPort for notifications from Indigo about devices that have changed state
     // json: the JSON key/value pairs to update
     refreshFromJSON(json) {
-        this.log("%s: refreshFromJSON()", this.name);
+        this.log.debug("%s: refreshFromJSON()", this.name);
         this.updateFromJSON(json, this.updateProperty.bind(this));
     };
 
@@ -177,7 +177,7 @@ class IndigoAccessory {
                         }
                     } else {
                         var onState = (this.on) ? true : false;
-                        this.log("%s: getOnState() => %s", this.name, onState);
+                        this.log.debug("%s: getOnState() => %s", this.name, onState);
                         if (callback) {
                             callback(undefined, onState);
                         }
@@ -195,7 +195,7 @@ class IndigoAccessory {
     // callback: invokes callback(error), error is undefined if no error occurred
     // context: if equal to IndigoAccessory.REFRESH_CONTEXT, will not call the Indigo RESTful API to update the device, otherwise will
     setOnState(onState, callback, context) {
-        this.log("%s: setOnState(%s)", this.name, onState);
+        this.log.debug("%s: setOnState(%s)", this.name, onState);
         if (context == IndigoAccessory.REFRESH_CONTEXT) {
             if (callback) {
                 callback();
